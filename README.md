@@ -1,4 +1,4 @@
-# cs238-project
+# CS 238: Worduolingo (Wordle Meets Duolingo 🦉💚)
 Project for CS238 on Multilingual Wordle (English, Japanese, Korean, Chinese, or at least the languages I have some experience in)
 
 <img src="chinese-wordle.png" height=400>
