@@ -14,8 +14,9 @@ def getEnglishWords(filename):
 def getRandomEnglishWord(words):
 	return np.random.choice(words)			
 
-class EnglishWordleSolverBaseline(WordleSolverBaseline):
-	def __init__(self, numGuesses, numLetters, secretKana, secretWord, eligibleWords, startingGuess = None):
+class EnglishWordleSolver(WordleSolver):
+	def __init__(self, numGuesses, numLetters, secretKana, secretWord, eligibleWords, 
+			  startingGuess = None, useBaseline = True):
 		self.numLetters = numLetters 
 		self.numGuesses = numGuesses 
 		self.guesses = [""]
@@ -25,6 +26,7 @@ class EnglishWordleSolverBaseline(WordleSolverBaseline):
 		self.secretWord = secretWord
 	
 		self.eligibleKana = eligibleWords 
+		self.useBaseline = useBaseline
 
 class EnglishWordleGame(WordleGame):
 	def __init__(self, numGuesses, numLetters, debugMode = False):
@@ -40,10 +42,10 @@ class EnglishWordleGame(WordleGame):
 			print(f"Secret {numLetters} English word selected from {len(self.validGuesses)} eligible words")
 			print(f"Secret Word: {self.secretWord}")
 	
-	def run(self, graphics = True):
+	def run(self, graphics = True, useBaseline = True):
 		self.initializeGame()
-		self.solver = EnglishWordleSolverBaseline(self.numGuesses, self.numLetters, self.secretKana, 
-				self.secretWord, self.validGuesses, startingGuess = self.startingGuess)
+		self.solver = EnglishWordleSolver(self.numGuesses, self.numLetters, self.secretKana, 
+				self.secretWord, self.validGuesses, startingGuess = self.startingGuess, useBaseline = useBaseline)
 		numGuessesNeeded = self.solver.solve(graphics)
 		if graphics: self.runGraphics()
 		return numGuessesNeeded
@@ -63,7 +65,14 @@ def solveEnglishWord(secretWord, startingWord = "SLATE"):  # means tomorrow in K
 	else:
 		print("Did not solve unfortunately :(")
 
+
 if __name__ == "__main__":
-    solveEnglishWord(sys.argv[1].upper(), startingWord = "SLATE")
+	eligibleEnglishWords = getEnglishWords(ENGLISH_DICTIONARY)
+	if (len(sys.argv) > 1):
+		solveEnglishWord(sys.argv[1].upper(), startingWord = "SLATE")
+	else: 
+		randomWord = np.random.choice(eligibleEnglishWords)
+		print(randomWord)
+		solveEnglishWord(randomWord, startingWord = "SLATE")
 	
 	 

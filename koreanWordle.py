@@ -7,8 +7,9 @@ NUM_GUESSES = 6
 
 koreanWordTuples, koreanDictionary = readKoreanFiles(KOREAN_DIR)
 
-class KoreanWordleSolverBaseline(WordleSolverBaseline):
-	def __init__(self, numGuesses, numLetters, secretKana, secretWord, eligibleTuples, startingGuess = None):
+class KoreanWordleSolver(WordleSolver):
+	def __init__(self, numGuesses, numLetters, secretKana, secretWord, eligibleTuples, 
+			  startingGuess = None, useBaseline = True):
 		self.numLetters = numLetters 
 		self.numGuesses = numGuesses 
 		self.guesses = [""]
@@ -20,6 +21,7 @@ class KoreanWordleSolverBaseline(WordleSolverBaseline):
 		self.eligibleKana = [tup[0] for tup in eligibleTuples]
 		self.eligibleKana = list(set(self.eligibleKana))
 		#print(self.eligibleKana)
+		self.useBaseline = useBaseline
 
 class KoreanWordleGame(WordleGame):
 	def __init__(self, numGuesses, numLetters, debugMode = False):
@@ -36,10 +38,10 @@ class KoreanWordleGame(WordleGame):
 			print(f"Secret {numLetters} Jamo Letter Korean word selected from {len(self.eligibleTuples)} eligible words")
 			print(f"Secret Jamo Letters: {self.secretKana}, Word: {self.secretWord}, Definition: {self.secretDefinition}")
 			
-	def run(self, graphics = True):
+	def run(self, graphics = True, useBaseline = True):
 		self.initializeGame()
-		self.solver = KoreanWordleSolverBaseline(self.numGuesses, self.numLetters, self.secretKana, 
-				self.secretWord, self.eligibleTuples, startingGuess = self.startingGuess)
+		self.solver = KoreanWordleSolver(self.numGuesses, self.numLetters, self.secretKana, 
+				self.secretWord, self.eligibleTuples, startingGuess = self.startingGuess, useBaseline = useBaseline)
 		numGuessesNeeded = self.solver.solve(graphics)
 		if graphics: self.runGraphics()
 		return numGuessesNeeded
@@ -64,4 +66,12 @@ def solveKoreanWord(secretHangul, startingWord = "내일"):  # means tomorrow in
 		print("Did not solve unfortunately :(")
 
 if __name__ == "__main__":
-	solveKoreanWord("감사")
+	eligibleKoreanTuples = filterWords(koreanWordTuples, NUM_LETTERS)
+	if (len(sys.argv) > 1): 
+		solveKoreanWord(sys.argv[1])
+	else: 
+		randomWord = getRandomKoreanWord(eligibleKoreanTuples)[1]
+		print(f"Word: {randomWord}, Definition: {koreanDictionary[randomWord]}")
+		solveKoreanWord(randomWord)
+
+	# "감사"

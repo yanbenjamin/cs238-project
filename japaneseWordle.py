@@ -1,9 +1,6 @@
 """
 Wordle environment for Japanese specifically
-TODO: extend to Korean, and Pinyin Mandarin Chinese, jia you! jia you!
-
-Also TODO: probabilistic ranking mechanism for the words instead of just random selection,
-or based on information entropy gain or something like that. Can consider sequential MDP modeling
+probabilistic ranking mechanism for the words instead of just random selection, based on information entropy gain 
 """
 
 import matplotlib.pyplot as plt 
@@ -19,6 +16,8 @@ import matplotlib.font_manager as fm
 
 #NotoSansKR-VariableFont_wght.ttf
 fprop = fm.FontProperties(fname='Noto_Sans_KR/static/NotoSansKR-ExtraBold.ttf')
+
+chineseFProp = fm.FontProperties(fname='SimHei.ttf')
 
 # dataset: https://www.kaggle.com/datasets/dinislamgaraev/popular-japanese-words
 
@@ -37,6 +36,37 @@ WRONG_COLOR = [192, 192, 192]
 RGB_NUM_CHANNELS = 3
 _, DAKUTEN_MAPPINGS = getHiraganaChars()
 
+DICTIONARY_DIR = "dictionaries"
+CHINESE_FILENAME = "chinese-words.csv"
+
+def readChineseFiles(dirname, filename):
+	df_chinese = pd.read_csv(os.path.join(dirname, filename))
+	pinyinList = list(map(lambda text: text.strip(), list(df_chinese["pinyin"]))) # list(df_chinese["pinyin"]).map(lambda text: text.strip())
+	simplifiedCharactersList = list(map(lambda text: text.strip(), list(df_chinese["word_simplified"])))
+	EnglishDefList = list(map(lambda text: text.strip(), list(df_chinese["cc_cedict_english_definition"]))) #  list(df_chinese["English Definition"]).map(lambda text: text.strip())
+
+	chineseDictionary = {} # maps from the kanji to the corresponding english definitions
+	chineseWordTuples = []
+
+	for hanzi, pinyin, english in zip(simplifiedCharactersList, pinyinList, EnglishDefList):
+		pinyinCompressed = "".join(pinyin.split(" "))
+		if pinyin in chineseDictionary: 
+			chineseDictionary[hanzi].append(english)
+		else:
+			chineseDictionary[hanzi] = [english]
+		
+		chineseWordTuples.append((pinyinCompressed, hanzi, english))
+
+	#pprint.pprint(len(chineseWordTuples)) #[:100])
+	return chineseWordTuples, chineseDictionary
+
+chineseWordTuples, chineseDictionary = readChineseFiles(DICTIONARY_DIR, CHINESE_FILENAME)
+
+def findMatchingPinyin(targetPinyin, eligibleTuples):
+	for (pinyin, hanzi, english) in eligibleTuples:
+		if (pinyin == targetPinyin):
+			return hanzi 
+	return -1 
 
 def getGuessColors(currentGuess, secretKana):
 	numLetters = len(secretKana)
@@ -79,7 +109,7 @@ class WordleGameWindow(): #TODO: adapt to support Chinese (maybe Pinyin) and Kor
 		elif language == "Korean":
 			self.fontName = "Noto Serif CJK"
 		elif language == "Mandarin": # because of Pinyin usage as well
-			self.fontname = "Source Han Sans CN"
+			self.fontname = "Noto Serif CJK"
 		elif language == "English":
 			self.fontname = "Arial"
 
@@ -133,7 +163,10 @@ class WordleGameWindow(): #TODO: adapt to support Chinese (maybe Pinyin) and Kor
 		elif self.language == "English":
 			self.fig.suptitle(f"{self.language} Wordle\nTarget: {self.secretWord}", 
 				fontproperties = fprop, fontsize = TITLE_FONT_SIZE, y = 0.99)
-
+		elif self.language == "Mandarin":
+			self.fig.suptitle(f"Mandarin Chinese Wordle\nTarget: {self.secretKana} ({self.secretWord})", 
+				fontproperties = chineseFProp, fontsize = TITLE_FONT_SIZE, y = 0.99)
+		
 		self.setBoardColors()
 		im = self.ax.imshow(self.grid)
 		for i in range(NUM_GUESSES):
@@ -145,6 +178,8 @@ class WordleGameWindow(): #TODO: adapt to support Chinese (maybe Pinyin) and Kor
 				hangulLetters = [list(unicodedata.normalize("NFD", syllable)) for syllable in hangul]
 				currSyllable = 0
 				syllableLetter = 0
+			elif self.language == "Mandarin":
+				hanzi = findMatchingPinyin(guess, chineseWordTuples)
 
 			for j in range(NUM_LETTERS):
 				if (j >= len(guess)): continue 
@@ -157,6 +192,8 @@ class WordleGameWindow(): #TODO: adapt to support Chinese (maybe Pinyin) and Kor
 					if (syllableLetter == len(hangulLetters[currSyllable])):
 						syllableLetter = 0
 						currSyllable += 1
+				elif (self.language == "Mandarin"):
+					letter = guess[j]
 
 				fontColor = "black" if (i < len(self.guesses) - 1) else "white"
 
@@ -167,15 +204,24 @@ class WordleGameWindow(): #TODO: adapt to support Chinese (maybe Pinyin) and Kor
 					hangulJamo = unicodedata.normalize("NFD", letter)
 					text = self.ax.text(j, i, hangulJamo[syllableLetter - 1], ha="center", va="center", color = fontColor, 
 						fontproperties = fprop, fontsize = LETTER_FONT_SIZE + 6)
-			
+
 				elif (self.language == "English"):
 					text = self.ax.text(j, i, letter, ha="center", va="center", color = fontColor, 
 						fontsize = LETTER_FONT_SIZE )
+				
+				elif (self.language == "Mandarin"):
+					text = self.ax.text(j, i, letter, ha="center", va="center", color = fontColor, 
+						fontproperties = chineseFProp, fontsize = LETTER_FONT_SIZE + 10)
 				
 				if (self.language == "Korean" and j == NUM_LETTERS - 1):
 					SCREEN_WIDTH = 6 - 0.7
 					text = self.ax.text(SCREEN_WIDTH, i, hangul, ha="center", va="center", color = fontColor, 
 						fontproperties = fprop, fontsize = LETTER_FONT_SIZE + 6)
+				
+				if (self.language == "Mandarin" and j == NUM_LETTERS - 1):
+					SCREEN_WIDTH = 6 - 0.7
+					text = self.ax.text(SCREEN_WIDTH, i, hanzi, ha="center", va="center", color = fontColor, 
+						fontproperties = chineseFProp, fontsize = LETTER_FONT_SIZE + 10)
 
 
 		self.addGridLines(self.ax)
@@ -222,11 +268,12 @@ class WordleGame():
 		window.createGameBoard()
 		window.displayGameBoard()
 
-	def run(self, graphics = True):
+	def run(self, graphics = True, useBaseline = True):
 		self.initializeGame()
 
-		self.solver = WordleSolverBaseline(self.numGuesses, self.numLetters, self.secretKana, 
-				self.secretWord, self.eligibleTuples, startingGuess = self.startingGuess)
+		self.solver = WordleSolver(self.numGuesses, self.numLetters, self.secretKana, 
+				self.secretWord, self.eligibleTuples, 
+				startingGuess = self.startingGuess, useBaseline = useBaseline)
 		
 		numGuessesNeeded = self.solver.solve(graphics)
 		if graphics: self.runGraphics()
@@ -271,8 +318,18 @@ def colorsToStr(colors):
 		else: str += " "
 	return str
 
-class WordleSolverBaseline(): #designed for Japanese 
-	def __init__(self, numGuesses, numLetters, secretKana, secretWord, eligibleTuples, startingGuess = None):
+def colorsToPatternString(colors):
+	str = ""
+	for color in colors: 
+		if (color == CORRECT_COLOR): str += "C"
+		elif (color == FOUND_COLOR): str += "F"
+		elif (color == WRONG_COLOR): str += "W"
+		else: str += " "
+	return str
+
+class WordleSolver(): #designed for Japanese 
+	def __init__(self, numGuesses, numLetters, secretKana, secretWord, eligibleTuples, 
+			  startingGuess = None, useBaseline = True):
 		self.numLetters = numLetters 
 		self.numGuesses = numGuesses 
 		self.guesses = [""]
@@ -285,23 +342,62 @@ class WordleSolverBaseline(): #designed for Japanese
 		self.eligibleKana = [simplifyDakuten(tup[0], DAKUTEN_MAPPINGS) for tup in eligibleTuples]
 		self.eligibleKana = list(set(self.eligibleKana)) # remove duplicates after simplification
 
+		self.useBaseline = useBaseline
+
 	def getGuesses(self):
 		return self.guesses.copy()
+
+	def setBaselineModel(self, useBaseline = True):
+		self.useBaseline = useBaseline
+	
+	def getInformationGain(self, guess, remainingCandidates):
+		patternToWords = {}
+		for candidate in remainingCandidates: 
+			letterColors = getGuessColors(guess, candidate)
+			colorPattern = colorsToPatternString(letterColors)
+			if (colorPattern in patternToWords):
+				patternToWords[colorPattern].append(candidate)
+			else:
+				patternToWords[colorPattern] = [candidate]
+		
+		# get the pattern with the least number of affiliated words essentially to narrow down the list
+		numWords = len(remainingCandidates)
+		expectedEntropy = 0.0
+		for colorPattern, words in patternToWords.items():
+			probabilityOfGroup = len(words) / numWords 
+			expectedEntropy += probabilityOfGroup * math.log2(1 / probabilityOfGroup)
+
+		return expectedEntropy
+			
+	def getBestEntropyGuess(self, remainingCandidates):
+		# we don't know the true guess word, but for each candidate, we can simiulate across all possible words
+		bestGuess = ""
+		maxGainOfInformation = -1
+		for guess in remainingCandidates:
+			gainOfInformation = self.getInformationGain(guess, remainingCandidates)
+			if (gainOfInformation > maxGainOfInformation):
+				maxGainOfInformation = gainOfInformation
+				bestGuess = guess
+		
+		if (bestGuess == ""): return remainingCandidates[0]
+		return bestGuess		
 
 	def solve(self, printMode = True):
 		
 		# summary: iterate through evaluating the guesses, and refining the words and so forth
 		for guessNum in range(1, self.numGuesses + 1):
 			if (len(self.eligibleKana) == 0): 
-				raise ValueError(f"Error! Secret kana is {self.secretKana}, word is {self.secretWord}")
+				return -1
+				#raise ValueError(f"Error! Secret kana is {self.secretKana}, word is {self.secretWord}")
 			
 			if self.startingGuess != None and guessNum == 1: 
 				submittedGuess = self.startingGuess
 			else:
-				# need a better heuristic than this is the goal for today
-				# eg using entropy loss, or rollout, or something more computationally extravagant
-				submittedGuess = np.random.choice(self.eligibleKana)
-			
+				if self.useBaseline:
+					submittedGuess = np.random.choice(self.eligibleKana)
+				else: 
+					submittedGuess = self.getBestEntropyGuess(self.eligibleKana)
+
 			self.guesses[len(self.guesses) - 1] = submittedGuess
 			self.guesses.append("") # for next guess later
 
@@ -348,13 +444,9 @@ def solveJapaneseWord(secretKana):
 		print("Did not solve unfortunately :(")
 
 if __name__ == "__main__":
-	#runJapaneseWordleTests()
 	NUM_LETTERS = 4
-
 	SAMPLE_WORD = "きがつく"
 	word = sys.argv[1] if len(sys.argv) > 1 else SAMPLE_WORD
-	
-	#solveKoreanWord(None)
 	solveJapaneseWord(word)
 
 
