@@ -3,7 +3,7 @@ Project for CS238 on Multilingual Wordle (English, Japanese, Korean, Chinese, or
 
 <img src="chinese-wordle.png" height=400>
 
-<img src="japanese-english-korean-wordle.png" height=400>
+<img src="korean-english-japanese-wordle.png" height=400>
 
 ## Running Wordle Solver
 
